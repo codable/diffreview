@@ -44,7 +44,7 @@ function! s:ReviewStart(ref)
   let l:output = system('git diff --name-status ' . a:ref)
   for item in split(l:output, '\n')
     " Match {status} {filename}
-    let l:parts = matchlist(item, '\([ACDMRTUXB]\)\s\+\(.*\)')
+    let l:parts = matchlist(item, '\([ADMTUXB]\|C\d\+\|R\d\+\)\s\+\(.*\)')
     let l:filename = l:parts[2]
     call add(l:qflist, {'filename': l:filename, 'pattern': '', 'text': l:parts[1]})
     call add(g:ReviewChangeList, l:filename)
