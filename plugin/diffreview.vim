@@ -27,11 +27,26 @@ function! s:ReviewDiff()
 
   let g:ReviewFilename = l:filename
 
+  " close window except the quickfix and current file
   for i in range(1, winnr('$'))
-    " close window except the quickfix and current file
-    if winbufnr(i) != l:bufnr && bufname(winbufnr(i)) != ''
-      :execute i . 'q'
+    if winbufnr(i) == l:bufnr
+      continue
     endif
+
+    let l:ibufname =  bufname(winbufnr(i))
+
+    " skip quickfix window
+    if l:ibufname == ''
+      continue
+    endif
+
+    " skip minibuf window
+    if l:ibufname == '-MiniBufExplorer-'
+      continue
+    endif
+
+    " close this window
+    :execute i . 'q'
   endfor
   let l:ReviewGdiff = function('s:ReviewGdiff')
   call timer_start(100, l:ReviewGdiff)
