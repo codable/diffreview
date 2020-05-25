@@ -17,7 +17,7 @@ endfunction
 function! s:ReviewDiff()
   let l:filename = bufname('%')
   let l:bufnr = bufnr('%')
-  if index(g:ReviewChangeList, l:filename) == -1
+  if index(g:ReviewChangeList, getcwd() . '/' . l:filename) == -1
     return
   end
 
@@ -57,12 +57,13 @@ function! s:ReviewStart(ref)
   let g:ReviewChangeList = []
   let g:ReviewFilename = ''
   let l:output = system('git diff --name-status ' . a:ref)
+  let l:root = system('git rev-parse --show-toplevel | tr -d \\r\\n')
   for item in split(l:output, '\n')
     " Match {status} {filename}
     let l:parts = matchlist(item, '\([ADMTUXB]\|C\d\+\|R\d\+\)\s\+\(.*\)')
     let l:filename = l:parts[2]
-    call add(l:qflist, {'filename': l:filename, 'pattern': '', 'text': l:parts[1]})
-    call add(g:ReviewChangeList, l:filename)
+    call add(l:qflist, {'filename': l:root . '/' . l:filename, 'pattern': '', 'text': l:parts[1]})
+    call add(g:ReviewChangeList, l:root . '/' . l:filename)
   endfor
   call setqflist(l:qflist)
   :cw
