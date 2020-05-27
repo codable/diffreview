@@ -76,4 +76,4 @@ function! s:ReviewStop(ref)
   let g:ReviewStarted = false
 endfunction
 
-command -nargs=? Greview :call s:ReviewStart("<args>")
+command -nargs=? -complete=customlist,fugitive#EditComplete Greview :call s:ReviewStart("<args>")
