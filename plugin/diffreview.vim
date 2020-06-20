@@ -71,9 +71,10 @@ function! s:ReviewStart(ref)
   let g:ReviewStarted = 1
 endfunction
 
-function! s:ReviewStop(ref)
+function! s:ReviewStop()
   call setqflist([])
-  let g:ReviewStarted = false
+  let g:ReviewStarted = 0
 endfunction
 
 command -nargs=? -complete=customlist,fugitive#EditComplete Greview :call s:ReviewStart("<args>")
+command GreviewStop :call s:ReviewStop()
