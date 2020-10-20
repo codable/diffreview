@@ -62,8 +62,9 @@ function! s:ReviewStart(ref)
     " Match {status} {filename}
     let l:parts = matchlist(item, '\([ADMTUXB]\|C\d\+\|R\d\+\)\s\+\(.*\)')
     let l:filename = l:parts[2]
-    call add(l:qflist, {'filename': l:root . '/' . l:filename, 'pattern': '', 'text': l:parts[1]})
-    call add(g:ReviewChangeList, l:root . '/' . l:filename)
+      let l:fullpath = l:root . '/' . l:filename
+    call add(l:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1]})
+    call add(g:ReviewChangeList, l:fullpath)
   endfor
   call setqflist(l:qflist)
   :cw
@@ -76,5 +77,30 @@ function! s:ReviewStop()
   let g:ReviewStarted = 0
 endfunction
 
+function! s:ReviewRepo()
+  let g:ReviewChangeList = []
+  let g:ReviewFilename = ''
+
+  let l:output = system('repo status')
+  let l:qflist = []
+  let l:root = getcwd()
+  for item in split(l:output, '\n')
+    let l:parts = split(item, '[ \t]\+')
+    if l:parts[0] == 'project'
+      let l:project = l:parts[1]
+    elseif l:parts[0] != '--'
+      let l:filename = l:parts[1]
+      let l:fullpath = l:root . '/' . l:project . l:filename
+      call add(l:qflist, {'filename': l:fullpath, 'pattern': '', 'text': 'M'})
+      call add(g:ReviewChangeList, l:fullpath)
+    endif
+  endfor
+  call setqflist(l:qflist)
+  :cw
+  let g:ReviewRef = ''
+  let g:ReviewStarted = 1
+endfunction
+
 command -nargs=? -complete=customlist,fugitive#EditComplete Greview :call s:ReviewStart("<args>")
 command GreviewStop :call s:ReviewStop()
+command GreviewRepo :call s:ReviewRepo()
