@@ -52,22 +52,28 @@ function! s:ReviewDiff()
   call timer_start(100, l:ReviewGdiff)
 endfunction
 
-function! s:ReviewStart(ref)
-  let l:qflist = []
-  let g:ReviewChangeList = []
-  let g:ReviewFilename = ''
-  let l:output = system('git diff --name-status ' . a:ref)
-  let l:root = system('git rev-parse --show-toplevel | tr -d \\r\\n')
+function! s:CollectFiles(qflist, dir, ref)
+  let l:output = system('git -C ' . a:dir . ' diff --name-status ' . a:ref)
+  let l:root = system('git -C ' . a:dir . ' rev-parse --show-toplevel | tr -d \\r\\n')
   for item in split(l:output, '\n')
     " Match {status} {filename}
     let l:parts = matchlist(item, '\([ADMTUXB]\|C\d\+\|R\d\+\)\s\+\(.*\)')
     let l:filename = l:parts[2]
       let l:fullpath = l:root . '/' . l:filename
-    call add(l:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1]})
+    call add(a:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1]})
     call add(g:ReviewChangeList, l:fullpath)
   endfor
+endfunction
+
+function! s:ReviewStart(ref)
+  let g:ReviewChangeList = []
+  let g:ReviewFilename = ''
+  let l:qflist = []
+  call s:CollectFiles(l:qflist, '.', a:ref)
+
   call setqflist(l:qflist)
   :cw
+
   let g:ReviewRef = a:ref
   let g:ReviewStarted = 1
 endfunction
@@ -77,30 +83,23 @@ function! s:ReviewStop()
   let g:ReviewStarted = 0
 endfunction
 
-function! s:ReviewRepo()
+function! s:ReviewRepo(ref)
   let g:ReviewChangeList = []
   let g:ReviewFilename = ''
-
-  let l:output = system('repo status')
   let l:qflist = []
-  let l:root = getcwd()
-  for item in split(l:output, '\n')
-    let l:parts = split(item, '[ \t]\+')
-    if l:parts[0] == 'project'
-      let l:project = l:parts[1]
-    elseif l:parts[0] != '--'
-      let l:filename = l:parts[1]
-      let l:fullpath = l:root . '/' . l:project . l:filename
-      call add(l:qflist, {'filename': l:fullpath, 'pattern': '', 'text': 'M'})
-      call add(g:ReviewChangeList, l:fullpath)
-    endif
+
+  let l:output = system('repo list -p')
+  for project in split(l:output, '\n')
+    call s:CollectFiles(l:qflist, project, a:ref)
   endfor
+
   call setqflist(l:qflist)
   :cw
-  let g:ReviewRef = ''
+
+  let g:ReviewRef = a:ref
   let g:ReviewStarted = 1
 endfunction
 
 command -nargs=? -complete=customlist,fugitive#EditComplete Greview :call s:ReviewStart("<args>")
 command GreviewStop :call s:ReviewStop()
-command GreviewRepo :call s:ReviewRepo()
+command -nargs=? GreviewRepo :call s:ReviewRepo("<args>")
