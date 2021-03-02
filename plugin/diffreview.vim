@@ -11,6 +11,9 @@ augroup AutoReview
 augroup END
 
 function! s:ReviewGdiff(timer)
+  if !g:ReviewStarted
+    return
+  endif
   :execute 'Gdiff ' . g:ReviewRef
 endfunction
 
@@ -81,6 +84,7 @@ endfunction
 function! s:ReviewStop()
   call setqflist([])
   let g:ReviewStarted = 0
+  :ccl
 endfunction
 
 function! s:ReviewRepo(ref)
