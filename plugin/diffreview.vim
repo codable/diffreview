@@ -4,6 +4,7 @@ nmap ]q :cnext<CR>
 
 let g:ReviewStarted = 0
 let g:ReviewChangeList = []
+let g:ReviewBaseFilename = ''
 
 augroup AutoReview
   autocmd!
@@ -14,21 +15,40 @@ function! s:ReviewGdiff(timer)
   if !g:ReviewStarted
     return
   endif
-  :execute 'Gdiff ' . g:ReviewRef
+  if g:ReviewBaseFilename == ''
+    :execute 'Gdiff ' . g:ReviewRef
+  else
+    :execute 'Gdiff ' . g:ReviewRef . ':' . g:ReviewBaseFilename
+  endif
 endfunction
 
 function! s:ReviewDiff()
   let l:filename = bufname('%')
   let l:bufnr = bufnr('%')
-  if index(g:ReviewChangeList, getcwd() . '/' . l:filename) == -1
-    return
-  end
+  let l:qflist = getqflist()
+  let l:fullpath = getcwd() . '/' . l:filename
+  let l:status = ''
+  let l:oldname = ''
 
+  let l:index = index(g:ReviewChangeList, getcwd() . '/' . l:filename)
+
+  if l:index == -1
+    return
+  endif
+
+  " Already reviewed
   if l:filename == g:ReviewFilename
     return
   end
 
   let g:ReviewFilename = l:filename
+
+  if l:qflist[l:index].text =~ 'R\d\+'
+    let l:parts = split(l:qflist[l:index].text, '|')
+    let g:ReviewBaseFilename = l:parts[1]
+  else
+    let g:ReviewBaseFilename = ''
+  endif
 
   " close window except the quickfix and current file
   for i in range(1, winnr('$'))
@@ -61,9 +81,18 @@ function! s:CollectFiles(qflist, dir, ref)
   for item in split(l:output, '\n')
     " Match {status} {filename}
     let l:parts = matchlist(item, '\([ADMTUXB]\|C\d\+\|R\d\+\)\s\+\(.*\)')
-    let l:filename = l:parts[2]
+    let l:status = l:parts[1]
+    if l:status =~ 'R\d\+'
+      let l:names = split(l:parts[2], '\t')
+      let l:oldname = l:names[0]
+      let l:newname = l:names[1]
+      let l:fullpath = l:root . '/' . l:newname
+      call add(a:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1] . '|' . l:oldname})
+    else
+      let l:filename = l:parts[2]
       let l:fullpath = l:root . '/' . l:filename
-    call add(a:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1]})
+      call add(a:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1]})
+    endif
     call add(g:ReviewChangeList, l:fullpath)
   endfor
 endfunction
