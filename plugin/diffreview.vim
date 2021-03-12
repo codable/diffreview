@@ -23,6 +23,10 @@ function! s:ReviewGdiff(timer)
 endfunction
 
 function! s:ReviewDiff()
+  if !g:ReviewStarted
+    return
+  endif
+
   let l:filename = bufname('%')
   let l:bufnr = bufnr('%')
   let l:qflist = getqflist()
