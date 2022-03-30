@@ -16,9 +16,9 @@ function! s:ReviewGdiff(timer)
     return
   endif
   if g:ReviewBaseFilename == ''
-    :execute 'Gdiff ' . g:ReviewRef
+    :execute 'Gvdiffsplit ' . g:ReviewRef
   else
-    :execute 'Gdiff ' . g:ReviewRef . ':' . g:ReviewBaseFilename
+    :execute 'Gvdiffsplit ' . g:ReviewRef . ':' . g:ReviewBaseFilename
   endif
 endfunction
 
