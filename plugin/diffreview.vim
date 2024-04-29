@@ -105,7 +105,8 @@ function! s:ReviewStart(ref)
   let g:ReviewChangeList = []
   let g:ReviewFilename = ''
   let l:qflist = []
-  call s:CollectFiles(l:qflist, '.', a:ref)
+  let l:dir = FugitiveWorkTree()
+  call s:CollectFiles(l:qflist, l:dir, a:ref)
 
   call setqflist(l:qflist)
   :cw
