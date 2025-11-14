@@ -30,22 +30,23 @@ function! s:ReviewDiff()
   let l:filename = bufname('%')
   let l:bufnr = bufnr('%')
   let l:qflist = getqflist()
-  let l:fullpath = getcwd() . '/' . l:filename
+  let l:fullpath = simplify(l:filename)
   let l:status = ''
   let l:oldname = ''
 
-  let l:index = index(g:ReviewChangeList, getcwd() . '/' . l:filename)
+  let l:index = index(g:ReviewChangeList, l:filename)
 
   if l:index == -1
+    echohl WarningMsg | echo "file not in the review list" | echohl None
     return
   endif
 
   " Already reviewed
-  if l:filename == g:ReviewFilename
+  if l:fullpath == g:ReviewFilename
     return
   end
 
-  let g:ReviewFilename = l:filename
+  let g:ReviewFilename = l:fullpath
 
   if l:qflist[l:index].text =~ 'R\d\+'
     let l:parts = split(l:qflist[l:index].text, '|')
@@ -81,7 +82,6 @@ endfunction
 
 function! s:CollectFiles(qflist, dir, ref)
   let l:output = system('git -C ' . a:dir . ' diff --name-status ' . a:ref)
-  let l:root = system('git -C ' . a:dir . ' rev-parse --show-toplevel | tr -d \\r\\n')
   for item in split(l:output, '\n')
     " Match {status} {filename}
     let l:parts = matchlist(item, '\([ADMTUXB]\|C\d\+\|R\d\+\)\s\+\(.*\)')
@@ -90,22 +90,39 @@ function! s:CollectFiles(qflist, dir, ref)
       let l:names = split(l:parts[2], '\t')
       let l:oldname = l:names[0]
       let l:newname = l:names[1]
-      let l:fullpath = l:root . '/' . l:newname
+      let l:fullpath = simplify(a:dir . '/' . l:newname)
       call add(a:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1] . '|' . l:oldname})
     else
       let l:filename = l:parts[2]
-      let l:fullpath = l:root . '/' . l:filename
+      let l:fullpath = simplify(a:dir . '/' . l:filename)
       call add(a:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1]})
     endif
     call add(g:ReviewChangeList, l:fullpath)
   endfor
 endfunction
 
+function! s:ReviewRoot()
+  let l:worktree = fnamemodify(FugitiveWorkTree(), ':p')
+  let l:dir = expand("%:h")
+  let l:resolved = resolve(l:dir)
+
+  while l:dir != '.'
+    if l:resolved == l:worktree
+      return l:dir
+    else
+      let l:dir = fnamemodify(l:dir, ':h')
+      let l:resolved = fnamemodify(l:dir, ':p')
+    endif
+  endwhile
+
+  return '.'
+endfunction
+
 function! s:ReviewStart(ref)
   let g:ReviewChangeList = []
   let g:ReviewFilename = ''
   let l:qflist = []
-  let l:dir = FugitiveWorkTree()
+  let l:dir = s:ReviewRoot()
   call s:CollectFiles(l:qflist, l:dir, a:ref)
 
   call setqflist(l:qflist)
