@@ -37,7 +37,7 @@ function! s:ReviewDiff()
   let l:index = index(g:ReviewChangeList, l:filename)
 
   if l:index == -1
-    echohl WarningMsg | echo "file not in the review list" | echohl None
+    echohl WarningMsg | echo 'file not in the review list' | echohl None
     return
   endif
 
@@ -81,20 +81,37 @@ function! s:ReviewDiff()
 endfunction
 
 function! s:CollectFiles(qflist, dir, ref)
-  let l:output = system('git -C ' . a:dir . ' diff --name-status ' . a:ref)
+  let l:argv =['git']
+  if !empty(a:dir)
+    let l:argv += ['-C', a:dir]
+    let l:root = a:dir + '/'
+  else
+    let l:root = ''
+  endif
+  let l:argv += ['diff', '--name-status']
+  if !empty(a:ref)
+    let l:argv += [a:ref]
+  endif
+  call map(l:argv, 'shellescape(v:val)')
+
+  let l:output = system(join(l:argv, ' '))
   for item in split(l:output, '\n')
     " Match {status} {filename}
     let l:parts = matchlist(item, '\([ADMTUXB]\|C\d\+\|R\d\+\)\s\+\(.*\)')
+    if len(l:parts) < 1
+      echoerr 'cannot parse: ' . item
+      return
+    endif
     let l:status = l:parts[1]
     if l:status =~ 'R\d\+'
       let l:names = split(l:parts[2], '\t')
       let l:oldname = l:names[0]
       let l:newname = l:names[1]
-      let l:fullpath = simplify(a:dir . '/' . l:newname)
+      let l:fullpath = simplify(l:root . l:newname)
       call add(a:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1] . '|' . l:oldname})
     else
       let l:filename = l:parts[2]
-      let l:fullpath = simplify(a:dir . '/' . l:filename)
+      let l:fullpath = simplify(l:root . l:filename)
       call add(a:qflist, {'filename': l:fullpath, 'pattern': '', 'text': l:parts[1]})
     endif
     call add(g:ReviewChangeList, l:fullpath)
@@ -102,20 +119,21 @@ function! s:CollectFiles(qflist, dir, ref)
 endfunction
 
 function! s:ReviewRoot()
-  let l:worktree = fnamemodify(FugitiveWorkTree(), ':p')
-  let l:dir = expand("%:h")
-  let l:resolved = resolve(l:dir)
+  " Find the closet worktree of the current buffer
+  let l:abs_worktree = fnamemodify(FugitiveWorkTree(), ':p')
+  let l:dir_relative = expand('%:h')
+  let l:dir_resolved = resolve(l:dir_relative)
 
-  while l:dir != '.'
-    if l:resolved == l:worktree
-      return l:dir
+  while l:dir_relative != '.' && l:dir_relative != ''
+    if l:dir_resolved == l:abs_worktree
+      return l:dir_relative
     else
-      let l:dir = fnamemodify(l:dir, ':h')
-      let l:resolved = fnamemodify(l:dir, ':p')
+      let l:dir_relative = fnamemodify(l:dir_relative, ':h')
+      let l:dir_resolved = fnamemodify(l:dir_relative, ':p')
     endif
   endwhile
 
-  return '.'
+  return ''
 endfunction
 
 function! s:ReviewStart(ref)
@@ -155,6 +173,6 @@ function! s:ReviewRepo(ref)
   let g:ReviewStarted = 1
 endfunction
 
-command -nargs=? -complete=customlist,fugitive#EditComplete Greview :call s:ReviewStart("<args>")
+command -nargs=? -complete=customlist,fugitive#EditComplete Greview :call s:ReviewStart('<args>')
 command GreviewStop :call s:ReviewStop()
-command -nargs=? GreviewRepo :call s:ReviewRepo("<args>")
+command -nargs=? GreviewRepo :call s:ReviewRepo('<args>')
